@@ -6,7 +6,9 @@ import cors from "cors";
 // Read secret key from environment variable
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// ---------------------------------------------------------------------
 // Very simple in-memory store (OK for assignment/demo)
+// ---------------------------------------------------------------------
 const payments = new Map(); // key: paymentId, value: { status, name, amount, updatedAt }
 
 // Helper to upsert payment
@@ -21,6 +23,9 @@ function updatePayment(paymentId, payload) {
   return next;
 }
 
+// ---------------------------------------------------------------------
+// Express setup
+// ---------------------------------------------------------------------
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -29,11 +34,28 @@ app.get("/", (req, res) => {
   res.send("SplitBill backend is running.");
 });
 
+// ---------------------------------------------------------------------
+// 1. Create Checkout Session  (this is your create-checkout-session)
+// ---------------------------------------------------------------------
 app.post("/create-checkout-session", async (req, res) => {
   try {
-    const { name, total, payment_method } = req.body;
+    // ⬅️ now also expect paymentId from the frontend
+    const { name, total, payment_method, paymentId } = req.body;
+
+    if (!paymentId) {
+      return res
+        .status(400)
+        .json({ error: "paymentId is required for tracking status" });
+    }
 
     const amount = Math.round((Number(total) || 0) * 100); // RM -> sen
+
+    // Save "pending" status before redirecting to Stripe
+    updatePayment(paymentId, {
+      status: "pending",
+      name,
+      amount: total,
+    });
 
     const paymentMethodTypes =
       payment_method === "bank"
@@ -53,10 +75,13 @@ app.post("/create-checkout-session", async (req, res) => {
           quantity: 1,
         },
       ],
+      // pass paymentId through to your success/cancel pages
       success_url:
-        "https://wx345.github.io/bill-summary/success.html?status=success",
+        "https://wx345.github.io/bill-summary/success.html?status=success&paymentId=" +
+        encodeURIComponent(paymentId),
       cancel_url:
-        "https://wx345.github.io/bill-summary/cancel.html?status=cancel",
+        "https://wx345.github.io/bill-summary/cancel.html?status=cancel&paymentId=" +
+        encodeURIComponent(paymentId),
     });
 
     res.json({ sessionId: session.id });
@@ -66,6 +91,35 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------
+// 2. Endpoint called by success.html / cancel.html
+//    → tells backend: approved / declined
+// ---------------------------------------------------------------------
+app.post("/api/payment-status", (req, res) => {
+  const { paymentId, status } = req.body;
+  if (!paymentId || !status) {
+    return res
+      .status(400)
+      .json({ error: "paymentId and status are required" });
+  }
+
+  const updated = updatePayment(paymentId, { status });
+  res.json(updated);
+});
+
+// ---------------------------------------------------------------------
+// 3. Endpoint called by Android app to poll payment status
+// ---------------------------------------------------------------------
+app.get("/api/payment-status/:paymentId", (req, res) => {
+  const paymentId = req.params.paymentId;
+  const info = payments.get(paymentId);
+  if (!info) {
+    return res.status(404).json({ error: "Unknown paymentId" });
+  }
+  res.json(info);
+});
+
+// ---------------------------------------------------------------------
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
