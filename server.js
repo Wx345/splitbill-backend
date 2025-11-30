@@ -6,6 +6,21 @@ import cors from "cors";
 // Read secret key from environment variable
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Very simple in-memory store (OK for assignment/demo)
+const payments = new Map(); // key: paymentId, value: { status, name, amount, updatedAt }
+
+// Helper to upsert payment
+function updatePayment(paymentId, payload) {
+  const prev = payments.get(paymentId) || {};
+  const next = {
+    ...prev,
+    ...payload,
+    updatedAt: Date.now(),
+  };
+  payments.set(paymentId, next);
+  return next;
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
