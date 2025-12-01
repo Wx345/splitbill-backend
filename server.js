@@ -104,8 +104,12 @@ app.post("/api/payment-status", (req, res) => {
   }
 
   const updated = updatePayment(paymentId, { status });
+
+  console.log("[payment-status] updated", paymentId, "=>", updated);
+
   res.json(updated);
 });
+
 
 // ---------------------------------------------------------------------
 // 3. Endpoint called by Android app to poll payment status
@@ -113,10 +117,16 @@ app.post("/api/payment-status", (req, res) => {
 app.get("/api/payment-status/:paymentId", (req, res) => {
   const paymentId = req.params.paymentId;
   const info = payments.get(paymentId);
+
   if (!info) {
-    return res.status(404).json({ error: "Unknown paymentId" });
+    // If we don't know this payment yet, just say "pending"
+    return res.json({ status: "pending" });
   }
-  res.json(info);
+
+  // Only send what Android actually needs
+  res.json({
+    status: info.status || "pending",
+  });
 });
 
 // ---------------------------------------------------------------------
