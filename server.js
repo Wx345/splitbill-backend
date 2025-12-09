@@ -35,7 +35,7 @@ app.use(
       "http://localhost:3000",            // dev (optional)
       "capacitor://localhost",            // Android WebView
       "http://localhost",                 // Android WebView variations
-      "https://splitzy-backend.vercel.app"
+      "splitbill-backend-is66.onrender.com"
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
