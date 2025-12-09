@@ -27,7 +27,22 @@ function updatePayment(paymentId, payload) {
 // Express setup
 // ---------------------------------------------------------------------
 const app = express();
-app.use(cors());
+
+app.use(
+  cors({
+    origin: [
+      "https://wx345.github.io",          // your GitHub Pages
+      "http://localhost:3000",            // dev (optional)
+      "capacitor://localhost",            // Android WebView
+      "http://localhost",                 // Android WebView variations
+      "https://splitzy-backend.vercel.app"
+    ],
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+    credentials: false
+  })
+);
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
