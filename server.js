@@ -104,7 +104,6 @@ app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
 
-// NEW endpoint for Android PaymentSheet
 app.post("/create-payment-intent-mobile", async (req, res) => {
   try {
     const { amount, paymentId, currency = "myr" } = req.body;
@@ -118,7 +117,7 @@ app.post("/create-payment-intent-mobile", async (req, res) => {
       return res.status(400).json({ error: "Invalid amount" });
     }
 
-    const stripeAmount = Math.round(amountNum * 100); // RM → sen
+    const stripeAmount = Math.round(amountNum * 100);
 
     updatePayment(paymentId, {
       status: "pending",
@@ -128,13 +127,11 @@ app.post("/create-payment-intent-mobile", async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: stripeAmount,
       currency,
-      // let Stripe decide payment methods
       automatic_payment_methods: { enabled: true },
     });
 
     res.json({
       clientSecret: paymentIntent.client_secret,
-      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
     });
   } catch (err) {
     console.error(err);
