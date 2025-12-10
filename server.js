@@ -17,8 +17,8 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "https://wx345.github.io",      // GitHub Pages (bill-summary)
-      "http://localhost:3000",        // dev (optional)
+      "https://wx345.github.io",
+      "http://localhost:3000",
       "capacitor://localhost",
       "http://localhost"
     ],
@@ -103,3 +103,42 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
+
+// NEW endpoint for Android PaymentSheet
+app.post("/create-payment-intent-mobile", async (req, res) => {
+  try {
+    const { amount, paymentId, currency = "myr" } = req.body;
+
+    if (!paymentId) {
+      return res.status(400).json({ error: "paymentId is required" });
+    }
+
+    const amountNum = Number(amount);
+    if (!amountNum || amountNum <= 0) {
+      return res.status(400).json({ error: "Invalid amount" });
+    }
+
+    const stripeAmount = Math.round(amountNum * 100); // RM → sen
+
+    updatePayment(paymentId, {
+      status: "pending",
+      amount: amountNum,
+    });
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: stripeAmount,
+      currency,
+      // let Stripe decide payment methods
+      automatic_payment_methods: { enabled: true },
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Unable to create PaymentIntent" });
+  }
+});
+
